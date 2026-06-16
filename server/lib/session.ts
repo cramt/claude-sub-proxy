@@ -74,7 +74,14 @@ export class Session {
       env: args.env,
       // Auto-approve everything; the *client* is the real gatekeeper.
       canUseTool: async (_name, input) => ({ behavior: "allow", updatedInput: input }),
+      // Surface the underlying CLI/API error (the SDK only hands us a coarse
+      // label like "unknown"); without this the real cause is invisible.
+      stderr: (data) => process.stderr.write(`[claude-cli] ${data}`),
     };
+    console.error(
+      `[session ${this.id}] start model=${args.model ?? "(default)"} tools=${args.tools.length}` +
+        ` promptChars=${args.promptText.length} toolNames=${args.tools.map((t) => t.function.name).join(",")}`,
+    );
     if (args.systemPrompt) options.systemPrompt = args.systemPrompt;
     if (args.model) options.model = args.model;
     if (args.claudeExecutable) options.pathToClaudeCodeExecutable = args.claudeExecutable;
@@ -144,6 +151,8 @@ export class Session {
       for await (const msg of this.query) {
         if (msg.type === "assistant" && (msg as any).error) {
           this.finished = true;
+          const detail = JSON.stringify((msg as any).message ?? {}).slice(0, 600);
+          console.error(`[session ${this.id}] assistant error=${(msg as any).error} detail=${detail}`);
           this.boundary.resolve({ kind: "error", message: String((msg as any).error) });
           return;
         }
