@@ -23,7 +23,13 @@ export default defineEventHandler(async (event) => {
     const dir = process.env.STATE_DIRECTORY;
     if (dir) {
       const { writeFileSync } = await import("node:fs");
-      writeFileSync(`${dir}/last-request.json`, JSON.stringify(body));
+      const raw = JSON.stringify(body);
+      writeFileSync(`${dir}/last-request.json`, raw);
+      // Preserve tool-bearing requests separately — Hermes fires trailing
+      // tools=0 aux calls that otherwise overwrite the failing main turn.
+      if (Array.isArray(body.tools) && body.tools.length > 0) {
+        writeFileSync(`${dir}/last-tool-request.json`, raw);
+      }
     }
   } catch {
     /* best effort */
