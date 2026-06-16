@@ -18,6 +18,17 @@ export default defineEventHandler(async (event) => {
     return { error: { message: "messages[] required" } };
   }
 
+  // DEBUG: dump the exact request so failures can be replayed verbatim.
+  try {
+    const dir = process.env.STATE_DIRECTORY;
+    if (dir) {
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(`${dir}/last-request.json`, JSON.stringify(body));
+    }
+  } catch {
+    /* best effort */
+  }
+
   const { boundary, sessionId, model } = await processChatCompletion(body);
 
   if (boundary.kind === "error") {
